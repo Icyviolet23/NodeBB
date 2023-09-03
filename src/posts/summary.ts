@@ -1,11 +1,13 @@
 import validator from 'validator';
 import _ from 'lodash';
 
-const topics = require('../topics');
-const user = require('../user');
-const plugins = require('../plugins');
-const categories = require('../categories');
-const utils = require('../utils');
+import topics from '../topics';
+import user from '../user';
+import plugins from '../plugins';
+import categories from '../categories';
+import utils from '../utils';
+
+type topicType = { cid : number, mainPid : number }
 
 type post = {
     uid : number,
@@ -13,7 +15,7 @@ type post = {
     pid : number,
     user : {},
     handle : any,
-    topic : { cid : number, mainPid : number },
+    topic : topicType,
     content : string,
     category : {},
     isMainPost : boolean,
@@ -30,11 +32,39 @@ type optionType = {
 }
 
 export default function (Posts : { 
-    getPostSummaryByPids : (pids : number, uid : number, options : optionType) => Promise<string[]>,                           
-    getPostsFields : (pids : number, fields : string []) => Promise<post[]>,        
-    overrideGuestHandle : (post : post, handle : any) => void,                        
+    getPostSummaryByPids : (pids : number, uid : number, options : optionType) => Promise<string[]>,
+    getPostsFields : (pids : number, fields : string []) => Promise<post[]>,
+    overrideGuestHandle : (post : post, handle : any) => void,
     parsePost : (post : post) => Promise<post>
 }) {
+    async function getTopicAndCategories(tids : number[]) {
+        const topicsData = await topics.getTopicsFields(tids, [
+            'uid', 'tid', 'title', 'cid', 'tags', 'slug',
+            'deleted', 'scheduled', 'postcount', 'mainPid', 'teaserPid',
+        ]);
+        const cids = _.uniq(topicsData.map((topic: { cid: number; }) => topic && topic.cid));
+        const categoriesData = await categories.getCategoriesFields(cids, [
+            'cid', 'name', 'icon', 'slug', 'parentCid',
+            'bgColor', 'color', 'backgroundImage', 'imageClass',
+        ]);
+        return { topics: topicsData, categories: categoriesData };
+    }
+
+    function toObject(key : string, data : { [field : string] : number } [] ) : { [id : number] : topicType } {
+        const obj = {};
+        for (let i = 0; i < data.length; i += 1) {
+            obj[data[i][key]] = data[i];
+        }
+        return obj;
+    }
+
+    function stripTags(content : string) : string {
+        if (content) {
+            return utils.stripHTMLTags(content, utils.stripTags);
+        }
+        return content;
+    }
+
     Posts.getPostSummaryByPids = async function (pids : number, uid : number, options) {
         if (!Array.isArray(pids) || !pids.length) {
             return [];
@@ -97,33 +127,5 @@ export default function (Posts : {
             }
             return post;
         }));
-    }
-
-    async function getTopicAndCategories(tids : number[]) {
-        const topicsData = await topics.getTopicsFields(tids, [
-            'uid', 'tid', 'title', 'cid', 'tags', 'slug',
-            'deleted', 'scheduled', 'postcount', 'mainPid', 'teaserPid',
-        ]);
-        const cids = _.uniq(topicsData.map((topic: { cid: any; }) => topic && topic.cid));
-        const categoriesData = await categories.getCategoriesFields(cids, [
-            'cid', 'name', 'icon', 'slug', 'parentCid',
-            'bgColor', 'color', 'backgroundImage', 'imageClass',
-        ]);
-        return { topics: topicsData, categories: categoriesData };
-    }
-
-    function toObject(key : string, data) {
-        const obj = {};
-        for (let i = 0; i < data.length; i += 1) {
-            obj[data[i][key]] = data[i];
-        }
-        return obj;
-    }
-
-    function stripTags(content : string) : string {
-        if (content) {
-            return utils.stripHTMLTags(content, utils.stripTags);
-        }
-        return content;
     }
 };

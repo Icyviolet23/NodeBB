@@ -14,12 +14,39 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const validator_1 = __importDefault(require("validator"));
 const lodash_1 = __importDefault(require("lodash"));
-const topics = require('../topics');
-const user = require('../user');
-const plugins = require('../plugins');
-const categories = require('../categories');
-const utils = require('../utils');
+const topics_1 = __importDefault(require("../topics"));
+const user_1 = __importDefault(require("../user"));
+const plugins_1 = __importDefault(require("../plugins"));
+const categories_1 = __importDefault(require("../categories"));
+const utils_1 = __importDefault(require("../utils"));
 function default_1(Posts) {
+    function getTopicAndCategories(tids) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const topicsData = yield topics_1.default.getTopicsFields(tids, [
+                'uid', 'tid', 'title', 'cid', 'tags', 'slug',
+                'deleted', 'scheduled', 'postcount', 'mainPid', 'teaserPid',
+            ]);
+            const cids = lodash_1.default.uniq(topicsData.map((topic) => topic && topic.cid));
+            const categoriesData = yield categories_1.default.getCategoriesFields(cids, [
+                'cid', 'name', 'icon', 'slug', 'parentCid',
+                'bgColor', 'color', 'backgroundImage', 'imageClass',
+            ]);
+            return { topics: topicsData, categories: categoriesData };
+        });
+    }
+    function toObject(key, data) {
+        const obj = {};
+        for (let i = 0; i < data.length; i += 1) {
+            obj[data[i][key]] = data[i];
+        }
+        return obj;
+    }
+    function stripTags(content) {
+        if (content) {
+            return utils_1.default.stripHTMLTags(content, utils_1.default.stripTags);
+        }
+        return content;
+    }
     Posts.getPostSummaryByPids = function (pids, uid, options) {
         return __awaiter(this, void 0, void 0, function* () {
             if (!Array.isArray(pids) || !pids.length) {
@@ -31,11 +58,11 @@ function default_1(Posts) {
             const fields = ['pid', 'tid', 'content', 'uid', 'timestamp', 'deleted', 'upvotes', 'downvotes', 'replies', 'handle'].concat(options.extraFields);
             let posts = yield Posts.getPostsFields(pids, fields);
             posts = posts.filter(Boolean);
-            posts = yield user.blocks.filter(uid, posts);
+            posts = yield user_1.default.blocks.filter(uid, posts);
             const uids = lodash_1.default.uniq(posts.map(p => p && p.uid));
             const tids = lodash_1.default.uniq(posts.map(p => p && p.tid));
             const [users, topicsAndCategories] = yield Promise.all([
-                user.getUsersFields(uids, ['uid', 'username', 'userslug', 'picture', 'status']),
+                user_1.default.getUsersFields(uids, ['uid', 'username', 'userslug', 'picture', 'status']),
                 getTopicAndCategories(tids),
             ]);
             const uidToUser = toObject('uid', users);
@@ -54,11 +81,11 @@ function default_1(Posts) {
                 post.category = post.topic && cidToCategory[post.topic.cid];
                 post.isMainPost = post.topic && post.pid === post.topic.mainPid;
                 post.deleted = post.deleted === 1;
-                post.timestampISO = utils.toISOString(post.timestamp);
+                post.timestampISO = utils_1.default.toISOString(post.timestamp);
             });
             posts = posts.filter(post => tidToTopic[post.tid]);
             posts = yield parsePosts(posts, options);
-            const result = yield plugins.hooks.fire('filter:post.getPostSummaryByPids', { posts: posts, uid: uid });
+            const result = yield plugins_1.default.hooks.fire('filter:post.getPostSummaryByPids', { posts: posts, uid: uid });
             return result.posts;
         });
     };
@@ -76,33 +103,6 @@ function default_1(Posts) {
                 return post;
             })));
         });
-    }
-    function getTopicAndCategories(tids) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const topicsData = yield topics.getTopicsFields(tids, [
-                'uid', 'tid', 'title', 'cid', 'tags', 'slug',
-                'deleted', 'scheduled', 'postcount', 'mainPid', 'teaserPid',
-            ]);
-            const cids = lodash_1.default.uniq(topicsData.map((topic) => topic && topic.cid));
-            const categoriesData = yield categories.getCategoriesFields(cids, [
-                'cid', 'name', 'icon', 'slug', 'parentCid',
-                'bgColor', 'color', 'backgroundImage', 'imageClass',
-            ]);
-            return { topics: topicsData, categories: categoriesData };
-        });
-    }
-    function toObject(key, data) {
-        const obj = {};
-        for (let i = 0; i < data.length; i += 1) {
-            obj[data[i][key]] = data[i];
-        }
-        return obj;
-    }
-    function stripTags(content) {
-        if (content) {
-            return utils.stripHTMLTags(content, utils.stripTags);
-        }
-        return content;
     }
 }
 exports.default = default_1;
