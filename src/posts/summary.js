@@ -22,11 +22,13 @@ const utils_1 = require("../utils");
 function default_1(Posts) {
     function getTopicAndCategories(tids) {
         return __awaiter(this, void 0, void 0, function* () {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
             const topicsData = yield (0, topics_1.getTopicsFields)(tids, [
                 'uid', 'tid', 'title', 'cid', 'tags', 'slug',
                 'deleted', 'scheduled', 'postcount', 'mainPid', 'teaserPid',
             ]);
-            const cids = lodash_1.default.uniq(topicsData.map((topic) => topic && topic.cid));
+            const cids = lodash_1.default.uniq(topicsData.map(topic => topic && topic.cid));
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
             const categoriesData = yield (0, categories_1.getCategoriesFields)(cids, [
                 'cid', 'name', 'icon', 'slug', 'parentCid',
                 'bgColor', 'color', 'backgroundImage', 'imageClass',
@@ -43,7 +45,8 @@ function default_1(Posts) {
     }
     function stripTags(content) {
         if (content) {
-            return (0, utils_1.stripHTMLTags)(content, stripTags);
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return
+            return (0, utils_1.stripHTMLTags)(content, utils_1.util.stripTags);
         }
         return content;
     }
@@ -73,10 +76,13 @@ function default_1(Posts) {
             const fields = ['pid', 'tid', 'content', 'uid', 'timestamp', 'deleted', 'upvotes', 'downvotes', 'replies', 'handle'].concat(options.extraFields);
             let posts = yield Posts.getPostsFields(pids, fields);
             posts = posts.filter(Boolean);
+            // eslint-disable-next-line
             posts = yield user_1.default.blocks.filter(uid, posts);
             const uids = lodash_1.default.uniq(posts.map(p => p && p.uid));
             const tids = lodash_1.default.uniq(posts.map(p => p && p.tid));
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             const [users, topicsAndCategories] = yield Promise.all([
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-call
                 user_1.default.getUsersFields(uids, ['uid', 'username', 'userslug', 'picture', 'status']),
                 getTopicAndCategories(tids),
             ]);
@@ -96,10 +102,12 @@ function default_1(Posts) {
                 post.category = post.topic && cidToCategory[post.topic.cid];
                 post.isMainPost = post.topic && post.pid === post.topic.mainPid;
                 post.deleted = post.deleted === 1;
-                post.timestampISO = (0, utils_1.toISOString)(post.timestamp);
+                // eslint-disable-next-line
+                post.timestampISO = utils_1.util.toISOString(post.timestamp);
             });
             posts = posts.filter(post => tidToTopic[post.tid]);
             posts = yield parsePosts(posts, options);
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             const result = yield plugins_1.default.hooks.fire('filter:post.getPostSummaryByPids', { posts: posts, uid: uid });
             return result.posts;
         });

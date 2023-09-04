@@ -5,7 +5,7 @@ import { getTopicsFields } from '../topics';
 import user from '../user';
 import plugins from '../plugins';
 import { getCategoriesFields } from '../categories';
-import { stripHTMLTags, stripTags, toISOString } from '../utils';
+import { util, stripHTMLTags } from '../utils';
 
 type topicType = { cid : number, mainPid : number }
 
@@ -31,26 +31,35 @@ type optionType = {
     extraFields : string[]
 }
 
+type stringDictType = { [field : string] : number }
+
+type topicAndCategoryType = {
+    topics : stringDictType [],
+    categories : stringDictType []
+}
+
 export default function (Posts : {
     getPostSummaryByPids : (pids : number, uid : number, options : optionType) => Promise<post[]>,
     getPostsFields : (pids : number, fields : string []) => Promise<post[]>,
-    overrideGuestHandle : (post : post, handle : any) => void,
+    overrideGuestHandle : (post : post, handle : object) => void,
     parsePost : (post : post) => Promise<post>
 }) {
     async function getTopicAndCategories(tids : number[]) {
-        const topicsData : { [field : string] : number } [] = await getTopicsFields(tids, [
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+        const topicsData : stringDictType [] = await getTopicsFields(tids, [
             'uid', 'tid', 'title', 'cid', 'tags', 'slug',
             'deleted', 'scheduled', 'postcount', 'mainPid', 'teaserPid',
         ]);
-        const cids = _.uniq(topicsData.map((topic) => topic && topic.cid));
-        const categoriesData : { [field : string] : number } [] = await getCategoriesFields(cids, [
+        const cids = _.uniq(topicsData.map(topic => topic && topic.cid));
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+        const categoriesData : stringDictType [] = await getCategoriesFields(cids, [
             'cid', 'name', 'icon', 'slug', 'parentCid',
             'bgColor', 'color', 'backgroundImage', 'imageClass',
         ]);
         return { topics: topicsData, categories: categoriesData };
     }
 
-    function toObject(key : string, data : { [field : string] : number } [] ) : { [id : number] : topicType } {
+    function toObject(key : string, data : { [field : string] : number } []) : { [id : number] : topicType } {
         const obj = {};
         for (let i = 0; i < data.length; i += 1) {
             obj[data[i][key]] = data[i];
@@ -60,12 +69,13 @@ export default function (Posts : {
 
     function stripTags(content : string) : string {
         if (content) {
-            return stripHTMLTags(content, stripTags);
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return
+            return stripHTMLTags(content, util.stripTags);
         }
         return content;
     }
 
-    async function parsePosts(posts : post[], options) : Promise<post[]> {
+    async function parsePosts(posts : post[], options : optionType) : Promise<post[]> {
         return await Promise.all(posts.map(async (post) => {
             if (!post.content || !options.parse) {
                 post.content = post.content ? validator.escape(String(post.content)) : post.content;
@@ -92,12 +102,16 @@ export default function (Posts : {
 
         let posts : post [] = await Posts.getPostsFields(pids, fields);
         posts = posts.filter(Boolean);
+
+        // eslint-disable-next-line
         posts = await user.blocks.filter(uid, posts);
 
         const uids : number[] = _.uniq(posts.map(p => p && p.uid));
         const tids : number[] = _.uniq(posts.map(p => p && p.tid));
 
-        const [users, topicsAndCategories] = await Promise.all([
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        const [users, topicsAndCategories] : [stringDictType [], topicAndCategoryType] = await Promise.all([
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-call
             user.getUsersFields(uids, ['uid', 'username', 'userslug', 'picture', 'status']),
             getTopicAndCategories(tids),
         ]);
@@ -119,12 +133,14 @@ export default function (Posts : {
             post.category = post.topic && cidToCategory[post.topic.cid];
             post.isMainPost = post.topic && post.pid === post.topic.mainPid;
             post.deleted = post.deleted === 1;
-            post.timestampISO = toISOString(post.timestamp);
+            // eslint-disable-next-line
+            post.timestampISO = util.toISOString(post.timestamp);
         });
 
         posts = posts.filter(post => tidToTopic[post.tid]);
 
         posts = await parsePosts(posts, options);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         const result : { posts : post[] } = await plugins.hooks.fire('filter:post.getPostSummaryByPids', { posts: posts, uid: uid });
         return result.posts;
     };
