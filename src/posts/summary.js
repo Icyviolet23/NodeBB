@@ -11,15 +11,14 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-Object.defineProperty(exports, "__esModule", { value: true });
 const validator_1 = __importDefault(require("validator"));
 const lodash_1 = __importDefault(require("lodash"));
 const topics_1 = require("../topics");
-const user_1 = __importDefault(require("../user"));
-const plugins_1 = __importDefault(require("../plugins"));
+const user = require('../user');
+const plugins = require('../plugins');
 const categories_1 = require("../categories");
-const utils_1 = require("../utils");
-function default_1(Posts) {
+const utils = require('../utils');
+module.exports = function (Posts) {
     function getTopicAndCategories(tids) {
         return __awaiter(this, void 0, void 0, function* () {
             // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
@@ -45,8 +44,8 @@ function default_1(Posts) {
     }
     function stripTags(content) {
         if (content) {
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return
-            return (0, utils_1.stripHTMLTags)(content, utils_1.util.stripTags);
+            // eslint-disable-next-line
+            return utils.stripHTMLTags(content, utils.stripTags);
         }
         return content;
     }
@@ -77,13 +76,13 @@ function default_1(Posts) {
             let posts = yield Posts.getPostsFields(pids, fields);
             posts = posts.filter(Boolean);
             // eslint-disable-next-line
-            posts = yield user_1.default.blocks.filter(uid, posts);
+            posts = yield user.blocks.filter(uid, posts);
             const uids = lodash_1.default.uniq(posts.map(p => p && p.uid));
             const tids = lodash_1.default.uniq(posts.map(p => p && p.tid));
             // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             const [users, topicsAndCategories] = yield Promise.all([
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-                user_1.default.getUsersFields(uids, ['uid', 'username', 'userslug', 'picture', 'status']),
+                user.getUsersFields(uids, ['uid', 'username', 'userslug', 'picture', 'status']),
                 getTopicAndCategories(tids),
             ]);
             const uidToUser = toObject('uid', users);
@@ -103,14 +102,13 @@ function default_1(Posts) {
                 post.isMainPost = post.topic && post.pid === post.topic.mainPid;
                 post.deleted = post.deleted === 1;
                 // eslint-disable-next-line
-                post.timestampISO = utils_1.util.toISOString(post.timestamp);
+                post.timestampISO = utils.toISOString(post.timestamp);
             });
             posts = posts.filter(post => tidToTopic[post.tid]);
             posts = yield parsePosts(posts, options);
             // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-            const result = yield plugins_1.default.hooks.fire('filter:post.getPostSummaryByPids', { posts: posts, uid: uid });
+            const result = yield plugins.hooks.fire('filter:post.getPostSummaryByPids', { posts: posts, uid: uid });
             return result.posts;
         });
     };
-}
-exports.default = default_1;
+};

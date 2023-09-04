@@ -5,7 +5,8 @@ import { getTopicsFields } from '../topics';
 import user from '../user';
 import plugins from '../plugins';
 import { getCategoriesFields } from '../categories';
-import { util, stripHTMLTags } from '../utils';
+
+const utils = require ('../utils');
 
 type topicType = { cid : number, mainPid : number }
 
@@ -38,7 +39,7 @@ type topicAndCategoryType = {
     categories : stringDictType []
 }
 
-export default function (Posts : {
+export = function (Posts : {
     getPostSummaryByPids : (pids : number, uid : number, options : optionType) => Promise<post[]>,
     getPostsFields : (pids : number, fields : string []) => Promise<post[]>,
     overrideGuestHandle : (post : post, handle : object) => void,
@@ -69,8 +70,8 @@ export default function (Posts : {
 
     function stripTags(content : string) : string {
         if (content) {
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return
-            return stripHTMLTags(content, util.stripTags);
+            // eslint-disable-next-line
+            return utils.stripHTMLTags(content, utils.stripTags);
         }
         return content;
     }
@@ -134,7 +135,7 @@ export default function (Posts : {
             post.isMainPost = post.topic && post.pid === post.topic.mainPid;
             post.deleted = post.deleted === 1;
             // eslint-disable-next-line
-            post.timestampISO = util.toISOString(post.timestamp);
+            post.timestampISO = utils.toISOString(post.timestamp);
         });
 
         posts = posts.filter(post => tidToTopic[post.tid]);
