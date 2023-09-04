@@ -1,11 +1,11 @@
 import validator from 'validator';
 import _ from 'lodash';
 
-import topics from '../topics';
+import { getTopicsFields } from '../topics';
 import user from '../user';
 import plugins from '../plugins';
-import categories from '../categories';
-import utils from '../utils';
+import { getCategoriesFields } from '../categories';
+import { stripHTMLTags, stripTags, toISOString } from '../utils';
 
 type topicType = { cid : number, mainPid : number }
 
@@ -13,11 +13,11 @@ type post = {
     uid : number,
     tid : number,
     pid : number,
-    user : {},
-    handle : any,
+    user : object,
+    handle : object,
     topic : topicType,
     content : string,
-    category : {},
+    category : object,
     isMainPost : boolean,
     deleted : number | boolean,
     timestampISO : string,
@@ -31,19 +31,19 @@ type optionType = {
     extraFields : string[]
 }
 
-export default function (Posts : { 
-    getPostSummaryByPids : (pids : number, uid : number, options : optionType) => Promise<string[]>,
+export default function (Posts : {
+    getPostSummaryByPids : (pids : number, uid : number, options : optionType) => Promise<post[]>,
     getPostsFields : (pids : number, fields : string []) => Promise<post[]>,
     overrideGuestHandle : (post : post, handle : any) => void,
     parsePost : (post : post) => Promise<post>
 }) {
     async function getTopicAndCategories(tids : number[]) {
-        const topicsData = await topics.getTopicsFields(tids, [
+        const topicsData : { [field : string] : number } [] = await getTopicsFields(tids, [
             'uid', 'tid', 'title', 'cid', 'tags', 'slug',
             'deleted', 'scheduled', 'postcount', 'mainPid', 'teaserPid',
         ]);
-        const cids = _.uniq(topicsData.map((topic: { cid: number; }) => topic && topic.cid));
-        const categoriesData = await categories.getCategoriesFields(cids, [
+        const cids = _.uniq(topicsData.map((topic) => topic && topic.cid));
+        const categoriesData : { [field : string] : number } [] = await getCategoriesFields(cids, [
             'cid', 'name', 'icon', 'slug', 'parentCid',
             'bgColor', 'color', 'backgroundImage', 'imageClass',
         ]);
@@ -60,9 +60,23 @@ export default function (Posts : {
 
     function stripTags(content : string) : string {
         if (content) {
-            return utils.stripHTMLTags(content, utils.stripTags);
+            return stripHTMLTags(content, stripTags);
         }
         return content;
+    }
+
+    async function parsePosts(posts : post[], options) : Promise<post[]> {
+        return await Promise.all(posts.map(async (post) => {
+            if (!post.content || !options.parse) {
+                post.content = post.content ? validator.escape(String(post.content)) : post.content;
+                return post;
+            }
+            post = await Posts.parsePost(post);
+            if (options.stripTags) {
+                post.content = stripTags(post.content);
+            }
+            return post;
+        }));
     }
 
     Posts.getPostSummaryByPids = async function (pids : number, uid : number, options) {
@@ -105,27 +119,13 @@ export default function (Posts : {
             post.category = post.topic && cidToCategory[post.topic.cid];
             post.isMainPost = post.topic && post.pid === post.topic.mainPid;
             post.deleted = post.deleted === 1;
-            post.timestampISO = utils.toISOString(post.timestamp);
+            post.timestampISO = toISOString(post.timestamp);
         });
 
         posts = posts.filter(post => tidToTopic[post.tid]);
 
         posts = await parsePosts(posts, options);
-        const result = await plugins.hooks.fire('filter:post.getPostSummaryByPids', { posts: posts, uid: uid });
+        const result : { posts : post[] } = await plugins.hooks.fire('filter:post.getPostSummaryByPids', { posts: posts, uid: uid });
         return result.posts;
     };
-
-    async function parsePosts(posts : post[], options) : Promise<post[]> {
-        return await Promise.all(posts.map(async (post) => {
-            if (!post.content || !options.parse) {
-                post.content = post.content ? validator.escape(String(post.content)) : post.content;
-                return post;
-            }
-            post = await Posts.parsePost(post);
-            if (options.stripTags) {
-                post.content = stripTags(post.content);
-            }
-            return post;
-        }));
-    }
-};
+}

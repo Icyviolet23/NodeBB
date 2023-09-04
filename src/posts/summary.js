@@ -14,20 +14,20 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const validator_1 = __importDefault(require("validator"));
 const lodash_1 = __importDefault(require("lodash"));
-const topics_1 = __importDefault(require("../topics"));
+const topics_1 = require("../topics");
 const user_1 = __importDefault(require("../user"));
 const plugins_1 = __importDefault(require("../plugins"));
-const categories_1 = __importDefault(require("../categories"));
-const utils_1 = __importDefault(require("../utils"));
+const categories_1 = require("../categories");
+const utils_1 = require("../utils");
 function default_1(Posts) {
     function getTopicAndCategories(tids) {
         return __awaiter(this, void 0, void 0, function* () {
-            const topicsData = yield topics_1.default.getTopicsFields(tids, [
+            const topicsData = yield (0, topics_1.getTopicsFields)(tids, [
                 'uid', 'tid', 'title', 'cid', 'tags', 'slug',
                 'deleted', 'scheduled', 'postcount', 'mainPid', 'teaserPid',
             ]);
             const cids = lodash_1.default.uniq(topicsData.map((topic) => topic && topic.cid));
-            const categoriesData = yield categories_1.default.getCategoriesFields(cids, [
+            const categoriesData = yield (0, categories_1.getCategoriesFields)(cids, [
                 'cid', 'name', 'icon', 'slug', 'parentCid',
                 'bgColor', 'color', 'backgroundImage', 'imageClass',
             ]);
@@ -43,9 +43,24 @@ function default_1(Posts) {
     }
     function stripTags(content) {
         if (content) {
-            return utils_1.default.stripHTMLTags(content, utils_1.default.stripTags);
+            return (0, utils_1.stripHTMLTags)(content, stripTags);
         }
         return content;
+    }
+    function parsePosts(posts, options) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return yield Promise.all(posts.map((post) => __awaiter(this, void 0, void 0, function* () {
+                if (!post.content || !options.parse) {
+                    post.content = post.content ? validator_1.default.escape(String(post.content)) : post.content;
+                    return post;
+                }
+                post = yield Posts.parsePost(post);
+                if (options.stripTags) {
+                    post.content = stripTags(post.content);
+                }
+                return post;
+            })));
+        });
     }
     Posts.getPostSummaryByPids = function (pids, uid, options) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -81,7 +96,7 @@ function default_1(Posts) {
                 post.category = post.topic && cidToCategory[post.topic.cid];
                 post.isMainPost = post.topic && post.pid === post.topic.mainPid;
                 post.deleted = post.deleted === 1;
-                post.timestampISO = utils_1.default.toISOString(post.timestamp);
+                post.timestampISO = (0, utils_1.toISOString)(post.timestamp);
             });
             posts = posts.filter(post => tidToTopic[post.tid]);
             posts = yield parsePosts(posts, options);
@@ -89,21 +104,5 @@ function default_1(Posts) {
             return result.posts;
         });
     };
-    function parsePosts(posts, options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            return yield Promise.all(posts.map((post) => __awaiter(this, void 0, void 0, function* () {
-                if (!post.content || !options.parse) {
-                    post.content = post.content ? validator_1.default.escape(String(post.content)) : post.content;
-                    return post;
-                }
-                post = yield Posts.parsePost(post);
-                if (options.stripTags) {
-                    post.content = stripTags(post.content);
-                }
-                return post;
-            })));
-        });
-    }
 }
 exports.default = default_1;
-;
