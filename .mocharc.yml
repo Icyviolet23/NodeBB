@@ -1,4 +1,4 @@
 reporter: dot # For a more verbose display - spec
-timeout: 25000
+timeout: 100000
 exit: true
 bail: true

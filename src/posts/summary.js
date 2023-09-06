@@ -1,4 +1,27 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -14,10 +37,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 const validator_1 = __importDefault(require("validator"));
 const lodash_1 = __importDefault(require("lodash"));
 const topics_1 = require("../topics");
-const user = require('../user');
-const plugins = require('../plugins');
+const user_1 = __importDefault(require("../user"));
+const plugins_1 = __importDefault(require("../plugins"));
 const categories_1 = require("../categories");
-const utils = require('../utils');
+const utils = __importStar(require("../utils"));
 module.exports = function (Posts) {
     function getTopicAndCategories(tids) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -76,13 +99,13 @@ module.exports = function (Posts) {
             let posts = yield Posts.getPostsFields(pids, fields);
             posts = posts.filter(Boolean);
             // eslint-disable-next-line
-            posts = yield user.blocks.filter(uid, posts);
+            posts = yield user_1.default.blocks.filter(uid, posts);
             const uids = lodash_1.default.uniq(posts.map(p => p && p.uid));
             const tids = lodash_1.default.uniq(posts.map(p => p && p.tid));
             // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             const [users, topicsAndCategories] = yield Promise.all([
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-                user.getUsersFields(uids, ['uid', 'username', 'userslug', 'picture', 'status']),
+                user_1.default.getUsersFields(uids, ['uid', 'username', 'userslug', 'picture', 'status']),
                 getTopicAndCategories(tids),
             ]);
             const uidToUser = toObject('uid', users);
@@ -107,7 +130,7 @@ module.exports = function (Posts) {
             posts = posts.filter(post => tidToTopic[post.tid]);
             posts = yield parsePosts(posts, options);
             // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-            const result = yield plugins.hooks.fire('filter:post.getPostSummaryByPids', { posts: posts, uid: uid });
+            const result = yield plugins_1.default.hooks.fire('filter:post.getPostSummaryByPids', { posts: posts, uid: uid });
             return result.posts;
         });
     };

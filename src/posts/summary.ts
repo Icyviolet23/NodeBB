@@ -5,8 +5,7 @@ import { getTopicsFields } from '../topics';
 import user from '../user';
 import plugins from '../plugins';
 import { getCategoriesFields } from '../categories';
-
-const utils = require ('../utils');
+import * as utils from '../utils';
 
 type topicType = { cid : number, mainPid : number }
 
